@@ -3,6 +3,7 @@ import Draw from './useMouse';
 import Redraw from './Redraw';  
 import DetectClick from './DetectClick';
 import DetectTouch from './DetectTouch.js';
+import { unstable_renderSubtreeIntoContainer } from 'react-dom';
 
 function App() {
   document.addEventListener('contextmenu', (e) => {
@@ -32,7 +33,7 @@ function App() {
           y:e.pageY
         })
         if(click.leftClick===true){
-          Draw(canvas,x,y,prex,prey,drawing,offset.x,offset.y);
+          Draw(canvas,x,y,prex,prey,drawing,offset.x,offset.y,scale);
         }
         if(click.rightClick===true){
             setoffset({x:offset.x-(x-prex),y:offset.y-(y-prey)})
@@ -55,7 +56,7 @@ function App() {
 
     useEffect(()=>{
       function handle(e){
-          if(touch.singleTouch){
+          if(touch.singleTouch===true){
             // setcoordinate({
             //   x1:e.touches[0].pageX,
             //   y1:e.touches[0].pageY, DOES NOT WORK
@@ -64,11 +65,11 @@ function App() {
             // })
           coordinate.x1=e.touches[0].pageX;
           coordinate.y1=e.touches[0].pageY;
-            Draw(canvas,coordinate.x1,coordinate.y1,touchpre.x1,touchpre.y1,drawing,offset.x,offset.y);
+            Draw(canvas,coordinate.x1,coordinate.y1,touchpre.x1,touchpre.y1,drawing,offset.x,offset.y,scale);
             touchpre.x1=e.touches[0].pageX;
             touchpre.y1=e.touches[0].pageY;
           }
-          if(touch.doubleTouch){
+          else if(touch.doubleTouch===true&&e.touches.length>1){
             // setcoordinate({
             //   x1:e.touches[0].pageX,
             //   y1:e.touches[0].pageY,     DOES NOT WORK
@@ -83,8 +84,37 @@ function App() {
             const midY=(coordinate.y1+coordinate.y2)/2;
             const preMidX=(touchpre.x1+touchpre.x2)/2;
             const preMidY=(touchpre.y1+touchpre.y2)/2;
+            
+            if(Math.sqrt(Math.pow((midX - preMidX), 2) + Math.pow((midY - preMidY), 2))>0.075){
             setoffset({x:offset.x-(midX-preMidX),y:offset.y-(midY-preMidY)});
-            Redraw(drawing,canvas,offset.x,offset.y,scale);
+             //Redraw(drawing,canvas,offset.x,offset.y,scale);
+            }
+            else{
+              const hypot = Math.sqrt(Math.pow((coordinate.x1 - coordinate.x2), 2) + Math.pow((coordinate.y1 - coordinate.y2), 2));
+              const prevHypot = Math.sqrt(Math.pow((touchpre.x1 - touchpre.x2), 2) + Math.pow((touchpre.y1 - touchpre.y2), 2));
+              console.log(scale);
+              if(hypot>prevHypot){
+                  setoffset((offset)=>{
+                    return{
+                    x:(offset.x/scale)*1.1*scale+midX*(0.1),
+                    y:(offset.y/scale)*1.1*scale+midY*(0.1)
+                    }
+                  })
+                  setscale((scale)=>{return scale*1.1});
+                }
+              console.log(offset,scale);
+              
+              if(hypot<prevHypot){
+                //console.log(delta);
+                  setoffset((offset)=>{
+                    return{
+                      x:((offset.x/scale)*scale/1.1)-midX*(0.1),
+                      y:((offset.y/scale)*scale/1.1)-midY*(0.1)
+                    }
+                  })
+                  setscale((scale)=>{return scale/1.1});
+              }
+            }
             touchpre.x1=coordinate.x1;
             touchpre.y1=coordinate.y1;
             touchpre.x2=coordinate.x2;
@@ -111,36 +141,42 @@ function App() {
     window.addEventListener("resize",resizeWindow);
     return ()=>window.removeEventListener("resize",resizeWindow);
   })
-
-  function Wheel(){
     useEffect(()=>{
       function handle(e){
-        if(e.deltaY>1)
-        setscale(scale*(1+e.deltaY/800));
-        if(e.deltaY<0)
-        setscale(scale/(-e.deltaY/800+1));
-
-        ///////offset setting
-
-        console.log(offset);
-        Redraw(drawing,canvas,offset.x,offset.y,scale);
-        console.log(e);
+          if(e.deltaY>1){
+            setoffset((offset)=>{
+              return{
+              x:(offset.x/scale)*(1+e.deltaY/1000)*scale+x*(e.deltaY/1000),
+              y:(offset.y/scale)*(1+e.deltaY/1000)*scale+y*(e.deltaY/1000)
+              }
+            })
+            setscale((scale)=>scale*(1+e.deltaY/1000));
+          }
+          if(e.deltaY<0){
+            setoffset((offset)=>{
+              return{
+                x:(offset.x/scale)*scale/(-e.deltaY/1000+1)+x*(e.deltaY/1100),
+                y:(offset.y/scale)*scale/(-e.deltaY/1000+1)+y*(e.deltaY/1100)
+              }
+            })
+            setscale((scale)=>scale/(-e.deltaY/1000+1));
+          }
+        
       }
-
+      
       document.addEventListener("wheel",handle);
       return ()=>document.removeEventListener("wheel",handle);
     })
-  }
-
-  Wheel();
-
+    useEffect(()=>{
+      Redraw(drawing,canvas,offset.x,offset.y,scale);
+    },[scale,offset])
 
 
   const{x,y}=UseMouse();
   const{prex,prey}=pre;
   Touchdraw();
   return ( <div>
-    <canvas ref={canvas} onTouchStart={e=>{DetectTouch({e,touch,touchpre});}} onMouseDown={e=>{DetectClick({e,setclick,setpre,pre,drawing,offset,canvas});} } onTouchEnd={e=>{settouchpre({x1:0,y1:0,x2:0,y2:0})}} onMouseUp={e=>{setclick({leftClick:false,rightClick:false});}} width={dim.x} height={dim.y}>
+    <canvas ref={canvas} onTouchStart={e=>{DetectTouch({e,touch,touchpre});}} onTouchEnd={e=>{settouch({singleTouch:false,doubleTouch:false})}} onMouseDown={e=>{DetectClick({e,setclick,setpre});} } onMouseUp={e=>{setclick({leftClick:false,rightClick:false});}} width={dim.x} height={dim.y}>
       </canvas>
       {/* <Draw canvas={canvas} clicked={click} x={x} y={y} prex={prex} prey={prey}/> */}
       </div>

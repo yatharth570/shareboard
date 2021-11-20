@@ -10,13 +10,17 @@ function Redraw(drawing,canvas,offsetx,offsety,scale){
             const line = drawing[i];
             context.strokeStyle = '#000';
             context.lineWidth = 1;
-            if(line.x-offsetx<0&&line.y-offsety<0){
-                continue;
-            }
             //console.log(line.x,line.y)
             context.beginPath();
-            context.moveTo((line.x-offsetx)*scale,(line.y-offsety)*scale);
-            context.lineTo((line.prex-offsetx)*scale, (line.prey-offsety)*scale);
+            //////////////
+            // if(line.scale>scale){
+                
+            // }
+            // else{
+            //     mul=scale/line.scale;
+            // }
+            context.moveTo(((line.x/line.scale)*scale-offsetx),((line.y/line.scale)*scale-offsety));
+            context.lineTo(((line.prex/line.scale)*scale-offsetx),((line.prey/line.scale)*scale-offsety));
             context.stroke();
         }    
          return null;
