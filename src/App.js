@@ -19,8 +19,8 @@ function App() {
   const[touchpre,settouchpre]=useState({x1:0,y1:0,x2:0,y2:0})
   const[offset,setoffset]=useState({x:0,y:0});
   const[scale,setscale]=useState(1);
-
-
+  let midX=0,midY=0,preMidX=0,preMidY=0;
+  let delta,hypot=0,prevHypot=1,tempoffx,tempoffy;
   
   function UseMouse(){
     const[coordinate,setcoordinate]=useState({x:0,y:0});
@@ -70,6 +70,8 @@ function App() {
             touchpre.y1=e.touches[0].pageY;
           }
           else if(touch.doubleTouch===true&&e.touches.length>1){
+            tempoffx=offset.x;
+            tempoffy=offset.y;
             // setcoordinate({
             //   x1:e.touches[0].pageX,
             //   y1:e.touches[0].pageY,     DOES NOT WORK
@@ -80,46 +82,38 @@ function App() {
             coordinate.y1=e.touches[0].pageY;
             coordinate.x2=e.touches[1].pageX;
             coordinate.y2=e.touches[1].pageY;
-            const midX=(coordinate.x1+coordinate.x2)/2;
-            const midY=(coordinate.y1+coordinate.y2)/2;
-            const preMidX=(touchpre.x1+touchpre.x2)/2;
-            const preMidY=(touchpre.y1+touchpre.y2)/2;
+            midX=(coordinate.x1+coordinate.x2)/2;
+            midY=(coordinate.y1+coordinate.y2)/2;
+            preMidX=(touchpre.x1+touchpre.x2)/2;
+            preMidY=(touchpre.y1+touchpre.y2)/2;
             
-            if(Math.sqrt(Math.pow((midX - preMidX), 2) + Math.pow((midY - preMidY), 2))>0.075){
-            setoffset({x:offset.x-(midX-preMidX),y:offset.y-(midY-preMidY)});
-             //Redraw(drawing,canvas,offset.x,offset.y,scale);
-            }
-            else{
-              const hypot = Math.sqrt(Math.pow((coordinate.x1 - coordinate.x2), 2) + Math.pow((coordinate.y1 - coordinate.y2), 2));
-              const prevHypot = Math.sqrt(Math.pow((touchpre.x1 - touchpre.x2), 2) + Math.pow((touchpre.y1 - touchpre.y2), 2));
-              console.log(scale);
+            // if(Math.sqrt(Math.pow((midX - preMidX), 2) + Math.pow((midY - preMidY), 2))>10){
+            // //setoffset({x:offset.x-(midX-preMidX),y:offset.y-(midY-preMidY)});
+            // console.log("GS");
+             
+            // }
+            // else{
+              hypot = Math.sqrt(Math.pow((coordinate.x1 - coordinate.x2), 2) + Math.pow((coordinate.y1 - coordinate.y2), 2));
+              prevHypot = Math.sqrt(Math.pow((touchpre.x1 - touchpre.x2), 2) + Math.pow((touchpre.y1 - touchpre.y2), 2));
               if(hypot>prevHypot){
-                  setoffset((offset)=>{
-                    return{
-                    x:(offset.x/scale)*1.1*scale+midX*(0.1),
-                    y:(offset.y/scale)*1.1*scale+midY*(0.1)
-                    }
-                  })
-                  setscale((scale)=>{return scale*1.1});
+                //console.log(delta,tempoffx,tempoffy);
+                  delta=scale*Math.pow(1.1,Math.floor(hypot)/Math.floor(prevHypot));
+                  tempoffx=(tempoffx/scale)*delta+(Math.floor(hypot)/Math.floor(prevHypot)*midX*(0.1));
+                  tempoffy=(tempoffy/scale)*delta+(Math.floor(hypot)/Math.floor(prevHypot)*midY*(0.1));
+                  tempoffx-=(midX-preMidX);
+                  tempoffy-=(midY-preMidY);
+                  Redraw(drawing,canvas,tempoffx,tempoffy,delta);
                 }
-              console.log(offset,scale);
+              //console.log(offset,scale);
               
-              if(hypot<prevHypot){
-                //console.log(delta);
-                  setoffset((offset)=>{
-                    return{
-                      x:((offset.x/scale)*scale/1.1)-midX*(0.1),
-                      y:((offset.y/scale)*scale/1.1)-midY*(0.1)
-                    }
-                  })
-                  setscale((scale)=>{return scale/1.1});
+              else if(hypot<prevHypot){
+                  delta=scale/Math.pow(1.1,Math.floor(prevHypot)/Math.floor(hypot));
+                  tempoffx=(tempoffx/scale)*delta-(Math.floor(prevHypot)/Math.floor(hypot)*midX*(0.1));
+                  tempoffy=(tempoffy/scale)*delta-(Math.floor(prevHypot)/Math.floor(hypot)*midY*(0.1));
+                  tempoffx-=(midX-preMidX);
+                  tempoffy-=(midY-preMidY);
+                  Redraw(drawing,canvas,tempoffx,tempoffy,delta);
               }
-            }
-            touchpre.x1=coordinate.x1;
-            touchpre.y1=coordinate.y1;
-            touchpre.x2=coordinate.x2;
-            touchpre.y2=coordinate.y2;
-
 
           }
         // }
@@ -145,21 +139,23 @@ function App() {
       function handle(e){
           if(e.deltaY>1){
             setoffset((offset)=>{
+              setscale((scale)=>scale*(1+e.deltaY/1000));
               return{
               x:(offset.x/scale)*(1+e.deltaY/1000)*scale+x*(e.deltaY/1000),
               y:(offset.y/scale)*(1+e.deltaY/1000)*scale+y*(e.deltaY/1000)
               }
             })
-            setscale((scale)=>scale*(1+e.deltaY/1000));
+            
           }
           if(e.deltaY<0){
             setoffset((offset)=>{
+              setscale((scale)=>scale/(-e.deltaY/1000+1));
               return{
                 x:(offset.x/scale)*scale/(-e.deltaY/1000+1)+x*(e.deltaY/1100),
                 y:(offset.y/scale)*scale/(-e.deltaY/1000+1)+y*(e.deltaY/1100)
               }
             })
-            setscale((scale)=>scale/(-e.deltaY/1000+1));
+            
           }
         
       }
@@ -176,7 +172,21 @@ function App() {
   const{prex,prey}=pre;
   Touchdraw();
   return ( <div>
-    <canvas ref={canvas} onTouchStart={e=>{DetectTouch({e,touch,touchpre});}} onTouchEnd={e=>{settouch({singleTouch:false,doubleTouch:false})}} onMouseDown={e=>{DetectClick({e,setclick,setpre});} } onMouseUp={e=>{setclick({leftClick:false,rightClick:false});}} width={dim.x} height={dim.y}>
+    <canvas ref={canvas} 
+    onTouchStart={e=>{
+      DetectTouch({e,touch,touchpre});delta=scale;tempoffx=offset.x;tempoffy=offset.y}} 
+    onTouchEnd={()=>{
+                    if(touch.doubleTouch==true)
+                    {
+                      setoffset({
+                        x:tempoffx,
+                        y:tempoffy
+                      })
+                      setscale(delta);
+                    } 
+                    settouch({singleTouch:false,doubleTouch:false});}} 
+    onTouchCancel={()=>{settouch({singleTouch:false,doubleTouch:false});}} 
+    onMouseDown={e=>{DetectClick({e,setclick,setpre});} } onMouseUp={e=>{setclick({leftClick:false,rightClick:false});}} width={dim.x} height={dim.y}>
       </canvas>
       {/* <Draw canvas={canvas} clicked={click} x={x} y={y} prex={prex} prey={prey}/> */}
       </div>
